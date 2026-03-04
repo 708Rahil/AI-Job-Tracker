@@ -1,8 +1,8 @@
 # AI Job Tracker 🚀
 
-![GitHub stars](https://img.shields.io/github/stars/<your-username>/AI-Job-Tracker?style=social) 
-![GitHub issues](https://img.shields.io/github/issues/<your-username>/AI-Job-Tracker) 
-![GitHub license](https://img.shields.io/github/license/<your-username>/AI-Job-Tracker)
+![GitHub stars](https://img.shields.io/github/stars/708Rahil/AI-Job-Tracker?style=social) 
+![GitHub issues](https://img.shields.io/github/issues/708Rahil/AI-Job-Tracker) 
+![GitHub license](https://img.shields.io/github/license/708Rahil/AI-Job-Tracker)
 
 AI Job Tracker helps you **manage job applications** with **AI-powered summaries**. Paste a job posting’s title, company, and description, and get a concise summary. Track your application status like **Applied, Interviewing, Rejected, or Offer**.  
 
@@ -41,5 +41,5 @@ AI Job Tracker helps you **manage job applications** with **AI-powered summaries
 ### 1️⃣ Clone the Repo
 
 ```bash
-git clone https://github.com/<your-username>/AI-Job-Tracker.git
+git clone https://github.com/708Rahil/AI-Job-Tracker.git
 cd AI-Job-Tracker
