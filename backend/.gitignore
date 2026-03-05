@@ -1,0 +1,15 @@
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# Logs
+*.log
+
+# Build output (React frontend)
+build/
+dist/
+
+# OS-specific files
+.DS_Store
