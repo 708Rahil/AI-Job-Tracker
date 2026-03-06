@@ -26,25 +26,24 @@ const HF_API_KEY = process.env.HF_API_KEY; // Optional, higher rate limits
 
 async function summarizeJob(description) {
   try {
-    const MAX_CHARS = 1000; // truncate long descriptions
-    const truncated = description.length > MAX_CHARS ? description.slice(0, MAX_CHARS) : description;
+    // Wrap the description in a prompt so the model knows to summarize
+    const prompt = `Summarize this job description in 2-3 sentences:\n\n${description}`;
+    const MAX_CHARS = 2000; // truncate long descriptions
+    const truncated = prompt.length > MAX_CHARS ? prompt.slice(0, MAX_CHARS) : prompt;
 
     const response = await axios.post(
       HF_MODEL_URL,
       {
         inputs: truncated,
-        parameters: {
-          min_length: 40,
-          max_length: 120,
-          do_sample: false
-        }
+        parameters: { min_length: 50, max_length: 150, do_sample: false }
       },
       {
         headers: HF_API_KEY ? { Authorization: `Bearer ${HF_API_KEY}` } : {},
-        timeout: 15000 // 15s timeout
+        timeout: 15000 // 15 seconds timeout
       }
     );
 
+    console.log("HF response:", response.data); // for debugging
     return response.data[0]?.summary_text || description;
   } catch (err) {
     console.error("Hugging Face summary error:", err.message);
