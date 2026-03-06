@@ -16,8 +16,8 @@ const pool = new Pool({
   port: process.env.PGPORT,
 });
 
-// ML microservice URL
-const ML_API_URL = process.env.ML_API_URL || 'http://localhost:8000/summarize';
+// ML microservice URL (optional)
+const ML_API_URL = process.env.ML_API_URL; // leave empty if not deployed
 
 // Add a new job
 app.post('/jobs', async (req, res) => {
@@ -28,9 +28,18 @@ app.post('/jobs', async (req, res) => {
   }
 
   try {
-    // Call ML microservice
-    const response = await axios.post(ML_API_URL, { title, company, description });
-    const summarizedJob = { ...response.data, status: 'Applied' };
+    let summary;
+
+    if (ML_API_URL) {
+      // Call ML microservice if URL provided
+      const response = await axios.post(ML_API_URL, { title, company, description });
+      summary = response.data.summary || description;
+    } else {
+      // Fallback: just use description
+      summary = description;
+    }
+
+    const summarizedJob = { title, company, summary, status: 'Applied' };
 
     // Insert into database
     const result = await pool.query(
