@@ -22,13 +22,13 @@ const pool = new Pool({
 // Hugging Face summarization
 // ===============================
 const HF_MODEL_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6";
-const HF_API_KEY = process.env.HF_API_KEY; // Optional, higher rate limits
+const HF_API_KEY = process.env.HF_API_KEY; // optional, for higher rate limits
 
 async function summarizeJob(description) {
   try {
-    // Wrap the description in a prompt so the model knows to summarize
+    // Wrap description in a summarization prompt
     const prompt = `Summarize this job description in 2-3 sentences:\n\n${description}`;
-    const MAX_CHARS = 2000; // truncate long descriptions
+    const MAX_CHARS = 2000; // truncate very long descriptions
     const truncated = prompt.length > MAX_CHARS ? prompt.slice(0, MAX_CHARS) : prompt;
 
     const response = await axios.post(
@@ -39,15 +39,16 @@ async function summarizeJob(description) {
       },
       {
         headers: HF_API_KEY ? { Authorization: `Bearer ${HF_API_KEY}` } : {},
-        timeout: 15000 // 15 seconds timeout
+        timeout: 15000
       }
     );
 
-    console.log("HF response:", response.data); // for debugging
+    console.log("HF response:", response.data); // debug
     return response.data[0]?.summary_text || description;
+
   } catch (err) {
     console.error("Hugging Face summary error:", err.message);
-    return description; // fallback if API fails
+    return description; // fallback to original if API fails
   }
 }
 
@@ -71,6 +72,7 @@ app.post('/jobs', async (req, res) => {
     );
 
     res.json(result.rows[0]);
+
   } catch (err) {
     console.error("Error in /jobs POST:", err.message);
     res.status(500).json({ error: "Failed to summarize or save job" });
@@ -94,6 +96,7 @@ app.get('/jobs', async (req, res) => {
     query += ' ORDER BY created_at DESC';
     const result = await pool.query(query, params);
     res.json(result.rows);
+
   } catch (err) {
     console.error('Error in /jobs GET:', err.message);
     res.status(500).json({ error: 'Failed to fetch jobs' });
@@ -110,6 +113,7 @@ app.put('/jobs/:id/status', async (req, res) => {
   try {
     await pool.query('UPDATE jobs SET status=$1 WHERE id=$2', [status, id]);
     res.json({ message: 'Status updated' });
+
   } catch (err) {
     console.error('Error updating status:', err.message);
     res.status(500).json({ error: 'Failed to update status' });
