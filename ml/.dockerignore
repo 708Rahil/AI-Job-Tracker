@@ -1,0 +1,20 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Git files
+.git
+.gitignore
+
+# Jupyter notebooks checkpoints
+*.ipynb_checkpoints
+
+# Large data files
+data/
+*.csv
+*.zip
+
+# Virtual environment
+.venv/
+env/
