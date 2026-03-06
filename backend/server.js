@@ -19,10 +19,29 @@ const pool = new Pool({
 });
 
 // ===============================
-// ML microservice URL
+// Hugging Face summarization
 // ===============================
-// Use private Railway network if available; fallback to public URL
-const ML_API_URL = process.env.ML_API_URL || "http://generous-imagination.railway.internal:8000";
+const HF_MODEL_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6";
+const HF_API_KEY = process.env.HF_API_KEY; // optional, for higher rate limits
+
+async function summarizeWithHF(description) {
+  try {
+    const response = await axios.post(
+      HF_MODEL_URL,
+      { inputs: description },
+      {
+        headers: HF_API_KEY
+          ? { Authorization: `Bearer ${HF_API_KEY}` }
+          : {},
+        timeout: 10000 // 10 sec timeout
+      }
+    );
+    return response.data[0]?.summary_text || description;
+  } catch (err) {
+    console.error("Hugging Face summary error:", err.message);
+    return description; // fallback to original description
+  }
+}
 
 // ===============================
 // Add a new job
@@ -35,10 +54,8 @@ app.post('/jobs', async (req, res) => {
   }
 
   try {
-    // Call ML microservice to generate summary
-    const response = await axios.post(`${ML_API_URL}/summarize`, { title, company, description });
-
-    const summary = response.data.summary || description;
+    // Generate summary via Hugging Face
+    const summary = await summarizeWithHF(description);
 
     // Save job to database
     const result = await pool.query(
@@ -88,11 +105,7 @@ app.put('/jobs/:id/status', async (req, res) => {
   const { status } = req.body;
 
   try {
-    await pool.query(
-      'UPDATE jobs SET status=$1 WHERE id=$2',
-      [status, id]
-    );
-
+    await pool.query('UPDATE jobs SET status=$1 WHERE id=$2', [status, id]);
     res.json({ message: 'Status updated' });
 
   } catch (err) {
@@ -108,5 +121,5 @@ const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
   console.log(`Backend server running on port ${PORT}`);
-  console.log(`ML API URL: ${ML_API_URL}`);
+  console.log(`Using Hugging Face model: ${HF_MODEL_URL}`);
 });
