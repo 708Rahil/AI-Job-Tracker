@@ -1,37 +1,48 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-
-const API_URL = "https://ai-job-tracker-production.up.railway.app"; // e.g., https://your-backend.up.railway.app
-console.log("Backend URL:", API_URL);
+const API_URL = process.env.REACT_APP_BACKEND_URL || "https://ai-job-tracker-production.up.railway.app";
 
 function App() {
   const [jobs, setJobs] = useState([]);
   const [title, setTitle] = useState("");
   const [company, setCompany] = useState("");
   const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false); // new state for summary loading
 
   const fetchJobs = async () => {
-    const res = await axios.get(`${API_URL}/jobs`);
-    setJobs(res.data);
+    try {
+      const res = await axios.get(`${API_URL}/jobs`);
+      setJobs(res.data);
+    } catch (err) {
+      console.error("Error fetching jobs:", err);
+    }
   };
 
   useEffect(() => { fetchJobs(); }, []);
 
   const addJob = async () => {
     if (!title || !company || !description) return;
+
     try {
+      setLoading(true); // start loading
       const res = await axios.post(`${API_URL}/jobs`, { title, company, description });
       setJobs([...jobs, res.data]);
       setTitle(""); setCompany(""); setDescription("");
-    } catch (err) { console.error("Error adding job:", err); }
+    } catch (err) {
+      console.error("Error adding job:", err);
+    } finally {
+      setLoading(false); // stop loading
+    }
   };
 
   const handleStatusChange = async (id, newStatus) => {
     try {
       await axios.put(`${API_URL}/jobs/${id}/status`, { status: newStatus });
       fetchJobs();
-    } catch (err) { console.error("Error updating status:", err); }
+    } catch (err) {
+      console.error("Error updating status:", err);
+    }
   };
 
   const statusColor = (status) => {
@@ -52,7 +63,19 @@ function App() {
         <input placeholder="Job Title" value={title} onChange={e => setTitle(e.target.value)} />
         <input placeholder="Company" value={company} onChange={e => setCompany(e.target.value)} />
         <textarea placeholder="Paste full job description here" value={description} onChange={e => setDescription(e.target.value)} />
-        <button onClick={addJob} style={{ background: "#3b82f6", color: "white", padding: "0.5rem 1rem", border: "none", cursor: "pointer" }}>Add Job</button>
+        <button
+          onClick={addJob}
+          disabled={loading}
+          style={{
+            background: "#3b82f6",
+            color: "white",
+            padding: "0.5rem 1rem",
+            border: "none",
+            cursor: loading ? "not-allowed" : "pointer"
+          }}
+        >
+          {loading ? "Generating Summary..." : "Add Job"}
+        </button>
       </div>
 
       <h2>Jobs:</h2>
