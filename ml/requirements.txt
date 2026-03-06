@@ -1,10 +1,2 @@
-# FastAPI and Pydantic compatible versions
-fastapi==0.95.2
-uvicorn[standard]==0.22.0
-pydantic==1.10.11
-
-# Transformers for summarization
-transformers==5.3.0
-
-# CPU-only PyTorch (install from CPU wheel)
-torch==2.10.0
+# Only if you have other Python scripts
+requests==2.31.0
