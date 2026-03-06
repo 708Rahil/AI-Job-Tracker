@@ -22,8 +22,7 @@ const pool = new Pool({
 // Hugging Face summarization
 // ===============================
 const HF_MODEL_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6";
-// Hardcoded API key for now (replace with env variable in production)
-const HF_API_KEY = "REMOVED";
+const HF_API_KEY = process.env.HF_API_KEY; // ✅ safe from GitHub scanning
 
 async function summarizeJob(description) {
   try {
@@ -43,11 +42,9 @@ async function summarizeJob(description) {
     );
 
     const summary = response.data?.[0]?.summary_text;
-
     if (!summary || summary.trim() === description.trim()) {
       return description.split(". ").slice(0, 3).join(". ") + ".";
     }
-
     return summary;
 
   } catch (err) {
@@ -57,13 +54,11 @@ async function summarizeJob(description) {
 }
 
 // ===============================
-// Add a new job
+// Routes: Add / Get / Update jobs
 // ===============================
 app.post("/jobs", async (req, res) => {
   const { title, company, description } = req.body;
-  if (!title || !company || !description) {
-    return res.status(422).json({ error: "Title, company, and description are required" });
-  }
+  if (!title || !company || !description) return res.status(422).json({ error: "Title, company, and description are required" });
 
   try {
     const summary = await summarizeJob(description);
@@ -76,25 +71,18 @@ app.post("/jobs", async (req, res) => {
     );
 
     res.json(result.rows[0]);
-
   } catch (err) {
     console.error("Error in /jobs POST:", err.message);
     res.status(500).json({ error: "Failed to summarize or save job" });
   }
 });
 
-// ===============================
-// Get all jobs
-// ===============================
 app.get("/jobs", async (req, res) => {
   try {
     const { status } = req.query;
     let query = "SELECT * FROM jobs";
     const params = [];
-    if (status) {
-      query += " WHERE status=$1";
-      params.push(status);
-    }
+    if (status) { query += " WHERE status=$1"; params.push(status); }
     query += " ORDER BY created_at DESC";
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -104,9 +92,6 @@ app.get("/jobs", async (req, res) => {
   }
 });
 
-// ===============================
-// Update job status
-// ===============================
 app.put("/jobs/:id/status", async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
