@@ -22,24 +22,33 @@ const pool = new Pool({
 // Hugging Face summarization
 // ===============================
 const HF_MODEL_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6";
-const HF_API_KEY = process.env.HF_API_KEY; // optional, for higher rate limits
+const HF_API_KEY = process.env.HF_API_KEY; // Optional, higher rate limits
 
-async function summarizeWithHF(description) {
+async function summarizeJob(description) {
   try {
+    const MAX_CHARS = 1000; // truncate long descriptions
+    const truncated = description.length > MAX_CHARS ? description.slice(0, MAX_CHARS) : description;
+
     const response = await axios.post(
       HF_MODEL_URL,
-      { inputs: description },
       {
-        headers: HF_API_KEY
-          ? { Authorization: `Bearer ${HF_API_KEY}` }
-          : {},
-        timeout: 10000 // 10 sec timeout
+        inputs: truncated,
+        parameters: {
+          min_length: 40,
+          max_length: 120,
+          do_sample: false
+        }
+      },
+      {
+        headers: HF_API_KEY ? { Authorization: `Bearer ${HF_API_KEY}` } : {},
+        timeout: 15000 // 15s timeout
       }
     );
+
     return response.data[0]?.summary_text || description;
   } catch (err) {
     console.error("Hugging Face summary error:", err.message);
-    return description; // fallback to original description
+    return description; // fallback if API fails
   }
 }
 
@@ -54,10 +63,8 @@ app.post('/jobs', async (req, res) => {
   }
 
   try {
-    // Generate summary via Hugging Face
-    const summary = await summarizeWithHF(description);
+    const summary = await summarizeJob(description);
 
-    // Save job to database
     const result = await pool.query(
       `INSERT INTO jobs (title, company, description, summary, status)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
@@ -65,7 +72,6 @@ app.post('/jobs', async (req, res) => {
     );
 
     res.json(result.rows[0]);
-
   } catch (err) {
     console.error("Error in /jobs POST:", err.message);
     res.status(500).json({ error: "Failed to summarize or save job" });
@@ -87,10 +93,8 @@ app.get('/jobs', async (req, res) => {
     }
 
     query += ' ORDER BY created_at DESC';
-
     const result = await pool.query(query, params);
     res.json(result.rows);
-
   } catch (err) {
     console.error('Error in /jobs GET:', err.message);
     res.status(500).json({ error: 'Failed to fetch jobs' });
@@ -107,7 +111,6 @@ app.put('/jobs/:id/status', async (req, res) => {
   try {
     await pool.query('UPDATE jobs SET status=$1 WHERE id=$2', [status, id]);
     res.json({ message: 'Status updated' });
-
   } catch (err) {
     console.error('Error updating status:', err.message);
     res.status(500).json({ error: 'Failed to update status' });
@@ -118,7 +121,6 @@ app.put('/jobs/:id/status', async (req, res) => {
 // Start server
 // ===============================
 const PORT = process.env.PORT || 8080;
-
 app.listen(PORT, () => {
   console.log(`Backend server running on port ${PORT}`);
   console.log(`Using Hugging Face model: ${HF_MODEL_URL}`);
