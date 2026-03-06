@@ -7,13 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const OpenAI = require("openai");
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Environment variables for Postgres
+// PostgreSQL connection
 const pool = new Pool({
   user: process.env.PGUSER,
   host: process.env.PGHOST,
@@ -22,10 +16,13 @@ const pool = new Pool({
   port: process.env.PGPORT,
 });
 
-// ML microservice URL (optional)
-const ML_API_URL = process.env.ML_API_URL;
+// ML microservice URL
+const ML_API_URL = process.env.ML_API_URL || "http://localhost:8000/summarize";
 
+
+// ===============================
 // Add a new job
+// ===============================
 app.post('/jobs', async (req, res) => {
   const { title, company, description } = req.body;
 
@@ -34,50 +31,38 @@ app.post('/jobs', async (req, res) => {
   }
 
   try {
-    let summary;
 
-    if (ML_API_URL) {
-      // If a separate ML service exists
-      const response = await axios.post(ML_API_URL, { title, company, description });
-      summary = response.data.summary;
-    } else {
-      // Use OpenAI directly
-      const aiResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "Summarize job descriptions in 2 concise sentences."
-          },
-          {
-            role: "user",
-            content: description
-          }
-        ],
-        max_tokens: 120
-      });
+    // Call ML microservice to generate summary
+    const response = await axios.post(ML_API_URL, {
+      title,
+      company,
+      description
+    });
 
-      summary = aiResponse.choices[0].message.content.trim();
-    }
+    const summary = response.data.summary || description;
 
-    // Insert into database
+    // Save job to database
     const result = await pool.query(
       `INSERT INTO jobs (title, company, description, summary, status)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [title, company, description, summary, 'Applied']
+      [title, company, description, summary, "Applied"]
     );
 
     res.json(result.rows[0]);
 
   } catch (err) {
-    console.error('Error in /jobs POST:', err);
-    res.status(500).json({ error: 'Failed to summarize or save job' });
+    console.error("Error in /jobs POST:", err.message);
+    res.status(500).json({ error: "Failed to summarize or save job" });
   }
 });
 
+
+// ===============================
 // Get all jobs
+// ===============================
 app.get('/jobs', async (req, res) => {
   try {
+
     const { status } = req.query;
     let query = 'SELECT * FROM jobs';
     const params = [];
@@ -90,6 +75,7 @@ app.get('/jobs', async (req, res) => {
     query += ' ORDER BY created_at DESC';
 
     const result = await pool.query(query, params);
+
     res.json(result.rows);
 
   } catch (err) {
@@ -98,12 +84,16 @@ app.get('/jobs', async (req, res) => {
   }
 });
 
+
+// ===============================
 // Update job status
+// ===============================
 app.put('/jobs/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
   try {
+
     await pool.query(
       'UPDATE jobs SET status=$1 WHERE id=$2',
       [status, id]
@@ -117,8 +107,11 @@ app.put('/jobs/:id/status', async (req, res) => {
   }
 });
 
+
+// ===============================
 // Start server
-const PORT = process.env.PORT || 3001;
+// ===============================
+const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
