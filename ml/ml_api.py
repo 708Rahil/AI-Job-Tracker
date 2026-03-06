@@ -6,7 +6,7 @@ app = FastAPI()
 
 # Load a summarization model
 # e.g., t5-small for speed, or bart-large-cnn for better quality
-summarizer = pipeline("summarization")
+summarizer = pipeline("summarization", model="t5-small")  
 
 
 class Job(BaseModel):

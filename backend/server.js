@@ -7,7 +7,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ===============================
 // PostgreSQL connection
+// ===============================
 const pool = new Pool({
   user: process.env.PGUSER,
   host: process.env.PGHOST,
@@ -16,9 +18,11 @@ const pool = new Pool({
   port: process.env.PGPORT,
 });
 
+// ===============================
 // ML microservice URL
-const ML_API_URL = process.env.ML_API_URL || "http://localhost:8000";
-
+// ===============================
+// Use private Railway network if available; fallback to public URL
+const ML_API_URL = process.env.ML_API_URL || "http://generous-imagination.railway.internal:8000";
 
 // ===============================
 // Add a new job
@@ -31,7 +35,6 @@ app.post('/jobs', async (req, res) => {
   }
 
   try {
-
     // Call ML microservice to generate summary
     const response = await axios.post(`${ML_API_URL}/summarize`, { title, company, description });
 
@@ -52,13 +55,11 @@ app.post('/jobs', async (req, res) => {
   }
 });
 
-
 // ===============================
 // Get all jobs
 // ===============================
 app.get('/jobs', async (req, res) => {
   try {
-
     const { status } = req.query;
     let query = 'SELECT * FROM jobs';
     const params = [];
@@ -71,7 +72,6 @@ app.get('/jobs', async (req, res) => {
     query += ' ORDER BY created_at DESC';
 
     const result = await pool.query(query, params);
-
     res.json(result.rows);
 
   } catch (err) {
@@ -79,7 +79,6 @@ app.get('/jobs', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch jobs' });
   }
 });
-
 
 // ===============================
 // Update job status
@@ -89,7 +88,6 @@ app.put('/jobs/:id/status', async (req, res) => {
   const { status } = req.body;
 
   try {
-
     await pool.query(
       'UPDATE jobs SET status=$1 WHERE id=$2',
       [status, id]
@@ -103,12 +101,12 @@ app.put('/jobs/:id/status', async (req, res) => {
   }
 });
 
-
 // ===============================
 // Start server
 // ===============================
 const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Backend server running on port ${PORT}`);
+  console.log(`ML API URL: ${ML_API_URL}`);
 });
