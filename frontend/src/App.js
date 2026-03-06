@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 
 
-const API_URL = process.env.REACT_APP_BACKEND_URL; // e.g., https://your-backend.up.railway.app
+const API_URL = "https://ai-job-tracker-production.up.railway.app"; // e.g., https://your-backend.up.railway.app
 console.log("Backend URL:", API_URL);
 
 function App() {
