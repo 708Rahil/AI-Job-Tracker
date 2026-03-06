@@ -1,7 +1,7 @@
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-const { Pool } = require('pg');
+const express = require("express");
+const axios = require("axios");
+const cors = require("cors");
+const { Pool } = require("pg");
 
 const app = express();
 app.use(cors());
@@ -22,19 +22,18 @@ const pool = new Pool({
 // Hugging Face summarization
 // ===============================
 const HF_MODEL_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6";
-const HF_API_KEY = process.env.HF_API_KEY; // optional, for higher rate limits
+const HF_API_KEY = process.env.HF_API_KEY; // optional for higher rate limits
 
 async function summarizeJob(description) {
   try {
-    // Wrap description in a summarization prompt
+    // Build prompt for better summarization
     const prompt = `Summarize this job description in 2-3 sentences:\n\n${description}`;
-    const MAX_CHARS = 2000; // truncate very long descriptions
-    const truncated = prompt.length > MAX_CHARS ? prompt.slice(0, MAX_CHARS) : prompt;
+    const truncatedPrompt = prompt.length > 2000 ? prompt.slice(0, 2000) : prompt;
 
     const response = await axios.post(
       HF_MODEL_URL,
       {
-        inputs: truncated,
+        inputs: truncatedPrompt,
         parameters: { min_length: 50, max_length: 150, do_sample: false }
       },
       {
@@ -43,27 +42,30 @@ async function summarizeJob(description) {
       }
     );
 
-    console.log("HF response:", response.data); // debug
-    return response.data[0]?.summary_text || description;
+    console.log("HF response:", response.data);
+
+    // If HF fails or returns unexpected data, fallback to original description
+    const summary = response.data?.[0]?.summary_text;
+    return summary && summary !== description ? summary : description;
 
   } catch (err) {
     console.error("Hugging Face summary error:", err.message);
-    return description; // fallback to original if API fails
+    return description; // fallback
   }
 }
 
 // ===============================
 // Add a new job
 // ===============================
-app.post('/jobs', async (req, res) => {
+app.post("/jobs", async (req, res) => {
   const { title, company, description } = req.body;
-
   if (!title || !company || !description) {
-    return res.status(422).json({ error: 'Title, company, and description are required' });
+    return res.status(422).json({ error: "Title, company, and description are required" });
   }
 
   try {
     const summary = await summarizeJob(description);
+    console.log("Generated summary:", summary);
 
     const result = await pool.query(
       `INSERT INTO jobs (title, company, description, summary, status)
@@ -82,41 +84,36 @@ app.post('/jobs', async (req, res) => {
 // ===============================
 // Get all jobs
 // ===============================
-app.get('/jobs', async (req, res) => {
+app.get("/jobs", async (req, res) => {
   try {
     const { status } = req.query;
-    let query = 'SELECT * FROM jobs';
+    let query = "SELECT * FROM jobs";
     const params = [];
-
     if (status) {
-      query += ' WHERE status=$1';
+      query += " WHERE status=$1";
       params.push(status);
     }
-
-    query += ' ORDER BY created_at DESC';
+    query += " ORDER BY created_at DESC";
     const result = await pool.query(query, params);
     res.json(result.rows);
-
   } catch (err) {
-    console.error('Error in /jobs GET:', err.message);
-    res.status(500).json({ error: 'Failed to fetch jobs' });
+    console.error("Error in /jobs GET:", err.message);
+    res.status(500).json({ error: "Failed to fetch jobs" });
   }
 });
 
 // ===============================
 // Update job status
 // ===============================
-app.put('/jobs/:id/status', async (req, res) => {
+app.put("/jobs/:id/status", async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-
   try {
-    await pool.query('UPDATE jobs SET status=$1 WHERE id=$2', [status, id]);
-    res.json({ message: 'Status updated' });
-
+    await pool.query("UPDATE jobs SET status=$1 WHERE id=$2", [status, id]);
+    res.json({ message: "Status updated" });
   } catch (err) {
-    console.error('Error updating status:', err.message);
-    res.status(500).json({ error: 'Failed to update status' });
+    console.error("Error updating status:", err.message);
+    res.status(500).json({ error: "Failed to update status" });
   }
 });
 
