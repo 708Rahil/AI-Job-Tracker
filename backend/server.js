@@ -17,7 +17,7 @@ const pool = new Pool({
 });
 
 // ML microservice URL
-const ML_API_URL = process.env.ML_API_URL || "http://localhost:8000/summarize";
+const ML_API_URL = process.env.ML_API_URL || "http://localhost:8000";
 
 
 // ===============================
