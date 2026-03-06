@@ -33,11 +33,7 @@ app.post('/jobs', async (req, res) => {
   try {
 
     // Call ML microservice to generate summary
-    const response = await axios.post(ML_API_URL, {
-      title,
-      company,
-      description
-    });
+    const response = await axios.post(`${ML_API_URL}/summarize`, { title, company, description });
 
     const summary = response.data.summary || description;
 
