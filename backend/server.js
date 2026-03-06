@@ -22,11 +22,11 @@ const pool = new Pool({
 // Hugging Face summarization
 // ===============================
 const HF_MODEL_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6";
-const HF_API_KEY = process.env.HF_API_KEY; // optional for higher rate limits
+// Hardcoded API key for now (replace with env variable in production)
+const HF_API_KEY = "REMOVED";
 
 async function summarizeJob(description) {
   try {
-    // Build prompt for better summarization
     const prompt = `Summarize this job description in 2-3 sentences:\n\n${description}`;
     const truncatedPrompt = prompt.length > 2000 ? prompt.slice(0, 2000) : prompt;
 
@@ -37,20 +37,22 @@ async function summarizeJob(description) {
         parameters: { min_length: 50, max_length: 150, do_sample: false }
       },
       {
-        headers: HF_API_KEY ? { Authorization: `Bearer ${HF_API_KEY}` } : {},
-        timeout: 15000
+        headers: { Authorization: `Bearer ${HF_API_KEY}` },
+        timeout: 30000
       }
     );
 
-    console.log("HF response:", response.data);
-
-    // If HF fails or returns unexpected data, fallback to original description
     const summary = response.data?.[0]?.summary_text;
-    return summary && summary !== description ? summary : description;
+
+    if (!summary || summary.trim() === description.trim()) {
+      return description.split(". ").slice(0, 3).join(". ") + ".";
+    }
+
+    return summary;
 
   } catch (err) {
     console.error("Hugging Face summary error:", err.message);
-    return description; // fallback
+    return description.split(". ").slice(0, 3).join(". ") + ".";
   }
 }
 
@@ -123,5 +125,5 @@ app.put("/jobs/:id/status", async (req, res) => {
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Backend server running on port ${PORT}`);
-  console.log(`Using Hugging Face model: ${HF_MODEL_URL}`);
+  console.log(`Hugging Face model: ${HF_MODEL_URL}`);
 });
