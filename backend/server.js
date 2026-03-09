@@ -2,6 +2,7 @@ const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
 const { Pool } = require("pg");
+const OpenAI = require("openai");
 
 const app = express();
 app.use(cors());
@@ -19,36 +20,34 @@ const pool = new Pool({
 });
 
 // ===============================
-// Hugging Face summarization
+// OpenAI client
 // ===============================
-const HF_MODEL_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6";
-const HF_API_KEY = process.env.HF_API_KEY; // ✅ safe from GitHub scanning
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
+// ===============================
+// Function to summarize job
+// ===============================
 async function summarizeJob(description) {
   try {
     const prompt = `Summarize this job description in 2-3 sentences:\n\n${description}`;
-    const truncatedPrompt = prompt.length > 2000 ? prompt.slice(0, 2000) : prompt;
 
-    const response = await axios.post(
-      HF_MODEL_URL,
-      {
-        inputs: truncatedPrompt,
-        parameters: { min_length: 50, max_length: 150, do_sample: false }
-      },
-      {
-        headers: { Authorization: `Bearer ${HF_API_KEY}` },
-        timeout: 30000
-      }
-    );
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are an expert at summarizing job descriptions clearly and concisely." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.5,
+      max_tokens: 150,
+    });
 
-    const summary = response.data?.[0]?.summary_text;
-    if (!summary || summary.trim() === description.trim()) {
-      return description.split(". ").slice(0, 3).join(". ") + ".";
-    }
-    return summary;
+    const summary = completion.choices[0].message.content.trim();
+    return summary || description.split(". ").slice(0, 3).join(". ") + ".";
 
   } catch (err) {
-    console.error("Hugging Face summary error:", err.message);
+    console.error("OpenAI summary error:", err.message);
     return description.split(". ").slice(0, 3).join(". ") + ".";
   }
 }
@@ -58,7 +57,9 @@ async function summarizeJob(description) {
 // ===============================
 app.post("/jobs", async (req, res) => {
   const { title, company, description } = req.body;
-  if (!title || !company || !description) return res.status(422).json({ error: "Title, company, and description are required" });
+  if (!title || !company || !description) {
+    return res.status(422).json({ error: "Title, company, and description are required" });
+  }
 
   try {
     const summary = await summarizeJob(description);
@@ -66,11 +67,12 @@ app.post("/jobs", async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO jobs (title, company, description, summary, status)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [title, company, description, summary, "Applied"]
     );
 
     res.json(result.rows[0]);
+
   } catch (err) {
     console.error("Error in /jobs POST:", err.message);
     res.status(500).json({ error: "Failed to summarize or save job" });
@@ -110,5 +112,4 @@ app.put("/jobs/:id/status", async (req, res) => {
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Backend server running on port ${PORT}`);
-  console.log(`Hugging Face model: ${HF_MODEL_URL}`);
 });
