@@ -12,4 +12,9 @@ build/
 dist/
 
 # OS-specific files
-.DS_Store
+.DS_Store.env
+.env
+backend/.env
+.env
+.env
+.env
