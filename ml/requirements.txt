@@ -1,2 +1,5 @@
-# Only if you have other Python scripts
-requests==2.31.0
+fastapi
+uvicorn
+transformers
+torch
+pydantic
