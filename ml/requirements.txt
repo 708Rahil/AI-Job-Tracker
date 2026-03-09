@@ -1,2 +1,5 @@
-# Only if you have other Python scripts
-requests==2.31.0
+torch==2.10.0+cpu --index-url https://download.pytorch.org/whl/cpu
+transformers==5.3.0
+fastapi
+uvicorn[standard]
+pydantic
