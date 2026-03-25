@@ -1,5 +1,8 @@
 fastapi
 uvicorn
-transformers
-torch
-pydantic
+sentence-transformers
+scikit-learn
+pdfplumber
+numpy
+pandas
+xgboost
